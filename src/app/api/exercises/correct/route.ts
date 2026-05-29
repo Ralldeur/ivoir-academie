@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import openai from "@/lib/openai";
+import { generateAIResponse, getAIProvider } from "@/lib/ai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,6 +19,18 @@ export async function POST(req: NextRequest) {
         { error: "Question et réponse de l'élève requises" },
         { status: 400 }
       );
+    }
+
+    if (getAIProvider() === "none") {
+      return NextResponse.json({
+        score: 14,
+        feedback:
+          "Mode démo - Connectez une clé API Groq (gratuit) ou OpenAI pour des corrections personnalisées.",
+        positives: ["Bonne structure"],
+        errors: ["Détails à vérifier"],
+        correction: "Correction détaillée disponible avec l'API Groq ou OpenAI.",
+        tips: ["Continuez vos efforts !"],
+      });
     }
 
     const prompt = `Corrige la réponse de cet élève de ${gradeLevel ?? "niveau non précisé"} en ${subject ?? "matière non précisée"}.
@@ -44,21 +56,8 @@ Réponds en JSON avec le format :
   "tips": ["..."]
 }`;
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({
-        score: 14,
-        feedback:
-          "Mode démo - Connectez une clé API OpenAI pour des corrections personnalisées.",
-        positives: ["Bonne structure"],
-        errors: ["Détails à vérifier"],
-        correction: "Correction détaillée disponible avec l'API OpenAI.",
-        tips: ["Continuez vos efforts !"],
-      });
-    }
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
+    const content = await generateAIResponse(
+      [
         {
           role: "system",
           content:
@@ -66,11 +65,9 @@ Réponds en JSON avec le format :
         },
         { role: "user", content: prompt },
       ],
-      temperature: 0.5,
-      response_format: { type: "json_object" },
-    });
+      { temperature: 0.5, jsonMode: true }
+    );
 
-    const content = response.choices[0]?.message?.content;
     if (!content) {
       return NextResponse.json(
         { error: "Pas de réponse de l'IA" },

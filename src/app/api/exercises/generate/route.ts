@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import openai from "@/lib/openai";
+import { generateAIResponse, getAIProvider } from "@/lib/ai";
+import { searchScrapedContent } from "@/lib/scraper";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,6 +21,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (getAIProvider() === "none") {
+      return NextResponse.json({
+        exercises: [
+          {
+            question: `Exercice de démonstration en ${subject} (${gradeLevel})`,
+            answer: "Réponse de démonstration",
+            explanation:
+              "Connectez une clé API Groq (gratuit) ou OpenAI pour générer des exercices personnalisés.",
+            options: null,
+          },
+        ],
+      });
+    }
+
+    // Search scraped content for context
+    const searchQuery = topic || subject;
+    const scrapedResults = await searchScrapedContent(searchQuery, subject, gradeLevel, 3);
+    const contextBlock = scrapedResults.length > 0
+      ? `\n\nContexte éducatif disponible :\n${scrapedResults.map((r) => `- ${r.title}: ${r.content.substring(0, 300)}`).join("\n")}\n\nUtilise ces informations pour créer des exercices pertinents.`
+      : "";
+
     const typeInstructions: Record<string, string> = {
       QCM: "Questions à choix multiples avec 4 options (A, B, C, D). Indique la bonne réponse.",
       OPEN: "Questions ouvertes nécessitant une réponse détaillée.",
@@ -31,6 +53,7 @@ export async function POST(req: NextRequest) {
 ${topic ? `Sujet spécifique : ${topic}` : ""}
 Difficulté : ${difficulty ?? "MEDIUM"}
 Type : ${typeInstructions[type ?? "OPEN"] ?? typeInstructions.OPEN}
+${contextBlock}
 
 Réponds en JSON avec le format suivant :
 {
@@ -44,23 +67,8 @@ Réponds en JSON avec le format suivant :
   ]
 }`;
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({
-        exercises: [
-          {
-            question: `Exercice de démonstration en ${subject} (${gradeLevel})`,
-            answer: "Réponse de démonstration",
-            explanation:
-              "Connectez une clé API OpenAI pour générer des exercices personnalisés.",
-            options: null,
-          },
-        ],
-      });
-    }
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
+    const content = await generateAIResponse(
+      [
         {
           role: "system",
           content:
@@ -68,11 +76,9 @@ Réponds en JSON avec le format suivant :
         },
         { role: "user", content: prompt },
       ],
-      temperature: 0.8,
-      response_format: { type: "json_object" },
-    });
+      { temperature: 0.8, jsonMode: true }
+    );
 
-    const content = response.choices[0]?.message?.content;
     if (!content) {
       return NextResponse.json(
         { error: "Pas de réponse de l'IA" },
