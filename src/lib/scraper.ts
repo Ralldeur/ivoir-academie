@@ -11,6 +11,13 @@ export interface ScrapedItem {
   gradeLevel?: string;
 }
 
+const HTTP_HEADERS = {
+  "User-Agent":
+    "IvoirAcademie/1.0 (https://github.com/Ralldeur/ivoir-academie; contact@ivoir-academie.ci) educational-platform",
+  "Accept": "text/html,application/xhtml+xml,application/json",
+  "Accept-Language": "fr-FR,fr;q=0.9",
+};
+
 const SUBJECT_KEYWORDS: Record<string, string[]> = {
   mathematiques: ["mathématiques", "maths", "algèbre", "géométrie", "arithmétique", "calcul", "équation", "fonction", "probabilité", "statistique", "pythagore", "thalès"],
   francais: ["français", "grammaire", "conjugaison", "orthographe", "littérature", "rédaction", "vocabulaire", "syntaxe", "lecture"],
@@ -60,11 +67,7 @@ async function fetchPage(url: string): Promise<string | null> {
   try {
     const response = await axios.get(url, {
       timeout: 15000,
-      headers: {
-        "User-Agent": "IvoirAcademie-Bot/1.0 (Educational Platform)",
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "fr-FR,fr;q=0.9",
-      },
+      headers: HTTP_HEADERS,
     });
     return response.data;
   } catch (error) {
@@ -161,13 +164,13 @@ export async function scrapeWikipedia(topics: string[]): Promise<ScrapedItem[]> 
   for (const topic of topics) {
     try {
       const searchUrl = `https://fr.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(topic)}&srlimit=3&format=json&utf8=1`;
-      const searchRes = await axios.get(searchUrl, { timeout: 10000 });
+      const searchRes = await axios.get(searchUrl, { timeout: 10000, headers: HTTP_HEADERS });
       const searchResults = searchRes.data?.query?.search ?? [];
 
       for (const result of searchResults) {
         const pageTitle = result.title;
         const extractUrl = `https://fr.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=extracts&exintro=false&exsectionformat=plain&explaintext=true&exlimit=1&format=json&utf8=1`;
-        const extractRes = await axios.get(extractUrl, { timeout: 10000 });
+        const extractRes = await axios.get(extractUrl, { timeout: 10000, headers: HTTP_HEADERS });
         const pages = extractRes.data?.query?.pages ?? {};
         const page = Object.values(pages)[0] as { extract?: string; title?: string };
 
