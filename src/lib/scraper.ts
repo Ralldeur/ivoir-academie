@@ -78,9 +78,9 @@ async function fetchPage(url: string): Promise<string | null> {
 
 export async function scrapeEducationGouv(): Promise<ScrapedItem[]> {
   const items: ScrapedItem[] = [];
+  // The root domain is a splash page; the real portal lives under /index.php/Welcome
   const urls = [
-    "https://www.education.gouv.ci",
-    "https://www.education.gouv.ci/actualites",
+    "https://www.education.gouv.ci/index.php/Welcome",
   ];
 
   for (const url of urls) {
@@ -89,29 +89,29 @@ export async function scrapeEducationGouv(): Promise<ScrapedItem[]> {
 
     const $ = cheerio.load(html);
 
-    $("article, .article, .content-item, .news-item, .post").each((_, el) => {
-      const title = $(el).find("h1, h2, h3, h4, .title, a").first().text().trim();
-      const content = $(el).find("p, .summary, .description, .excerpt").text().trim();
-
-      if (title && content && content.length > 50) {
+    // News carousel captions and media items (official MENA announcements)
+    $(".carousel-caption, .media-body, article, .news-item, .post").each((_, el) => {
+      const raw = $(el).text().replace(/\s+/g, " ").replace(/Lire plus/gi, "").trim();
+      if (raw.length > 40) {
+        const heading = $(el).find("h1, h2, h3, h4, .title").first().text().trim();
+        const title = heading && heading.length > 5 ? heading : raw;
         items.push({
           title: title.substring(0, 200),
-          content: content.substring(0, 2000),
+          content: raw.substring(0, 2000),
           url,
           source: "education.gouv.ci",
-          subject: detectSubject(`${title} ${content}`),
-          gradeLevel: detectGradeLevel(`${title} ${content}`),
+          subject: detectSubject(raw),
+          gradeLevel: detectGradeLevel(raw),
         });
       }
     });
 
-    // Also grab main text content
-    $("main, .main-content, #content, .page-content").find("p").each((_, el) => {
-      const text = $(el).text().trim();
-      if (text.length > 100) {
-        const parentTitle = $(el).prevAll("h1, h2, h3, h4").first().text().trim() || "Information éducative";
+    // Fallback: substantial paragraphs and headings
+    $("p, h2, h3").each((_, el) => {
+      const text = $(el).text().replace(/\s+/g, " ").trim();
+      if (text.length > 60) {
         items.push({
-          title: parentTitle.substring(0, 200),
+          title: text.substring(0, 120),
           content: text.substring(0, 2000),
           url,
           source: "education.gouv.ci",
@@ -122,7 +122,13 @@ export async function scrapeEducationGouv(): Promise<ScrapedItem[]> {
     });
   }
 
-  return items;
+  // Deduplicate by title
+  const seen = new Set<string>();
+  return items.filter((it) => {
+    if (seen.has(it.title)) return false;
+    seen.add(it.title);
+    return true;
+  });
 }
 
 export async function scrapeAbidjanNet(): Promise<ScrapedItem[]> {
