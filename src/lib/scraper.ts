@@ -293,33 +293,34 @@ export async function searchScrapedContent(
 
   if (keywords.length === 0) return [];
 
-  // Search using keyword matching
-  const results = await prisma.scrapedContent.findMany({
+  // SQLite `contains` is case-sensitive and does not handle accents, so we
+  // fetch candidates (optionally narrowed by subject/grade) and rank them in
+  // JavaScript with case-insensitive matching for reliable RAG retrieval.
+  const candidates = await prisma.scrapedContent.findMany({
     where: {
       AND: [
         ...(subject ? [{ subject }] : []),
         ...(gradeLevel ? [{ OR: [{ gradeLevel }, { gradeLevel: null }] }] : []),
-        {
-          OR: keywords.map((kw) => ({
-            OR: [
-              { title: { contains: kw } },
-              { content: { contains: kw } },
-            ],
-          })),
-        },
       ],
     },
-    take: limit * 2,
     orderBy: { updatedAt: "desc" },
+    take: 1000,
     select: { title: true, content: true, source: true, url: true },
   });
 
-  // Rank by keyword match count
-  const scored = results.map((r) => {
-    const text = `${r.title} ${r.content}`.toLowerCase();
-    const score = keywords.filter((kw) => text.includes(kw)).length;
-    return { ...r, score };
-  });
+  // Rank by keyword match count (title matches weighted higher)
+  const scored = candidates
+    .map((r) => {
+      const title = r.title.toLowerCase();
+      const text = `${title} ${r.content.toLowerCase()}`;
+      const score = keywords.reduce((acc, kw) => {
+        if (title.includes(kw)) return acc + 2;
+        if (text.includes(kw)) return acc + 1;
+        return acc;
+      }, 0);
+      return { ...r, score };
+    })
+    .filter((r) => r.score > 0);
 
   scored.sort((a, b) => b.score - a.score);
 
