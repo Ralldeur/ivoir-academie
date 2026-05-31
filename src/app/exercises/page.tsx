@@ -13,6 +13,7 @@ import {
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
 import { SUBJECTS, ALL_GRADE_LEVELS } from "@/lib/utils";
+import { LYCEE_SERIES } from "@/lib/curriculum";
 import ReactMarkdown from "react-markdown";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -38,6 +39,7 @@ export default function ExercisesPage() {
   const router = useRouter();
   const [subject, setSubject] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
+  const [serie, setSerie] = useState("");
   const [difficulty, setDifficulty] = useState("MEDIUM");
   const [exerciseType, setExerciseType] = useState("OPEN");
   const [topic, setTopic] = useState("");
@@ -74,6 +76,7 @@ export default function ExercisesPage() {
         body: JSON.stringify({
           subject,
           gradeLevel,
+          serie,
           difficulty,
           type: exerciseType,
           topic,
@@ -165,6 +168,18 @@ export default function ExercisesPage() {
               }))}
               placeholder="Choisis un niveau"
             />
+            {["2NDE", "1ERE", "TLE"].includes(gradeLevel) && (
+              <Select
+                label="Série (BAC)"
+                value={serie}
+                onChange={(e) => setSerie(e.target.value)}
+                options={LYCEE_SERIES.map((s) => ({
+                  value: s.value,
+                  label: s.label,
+                }))}
+                placeholder="Choisis une série"
+              />
+            )}
             <Select
               label="Difficulté"
               value={difficulty}

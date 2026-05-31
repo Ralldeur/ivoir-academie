@@ -89,7 +89,8 @@ export async function POST(req: NextRequest) {
       conversation.subject,
       conversation.mode,
       lessonContext,
-      scrapedContext
+      scrapedContext,
+      conversation.serie
     );
 
     const chatMessages: Array<{

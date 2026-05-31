@@ -89,6 +89,7 @@ model Conversation {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject    String?
   gradeLevel String?
+  serie      String?
   mode       String    @default("CHAT")
   messages   Message[]
   createdAt  DateTime  @default(now())

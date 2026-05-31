@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+import { buildCurriculumContext } from "@/lib/curriculum";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -86,7 +87,8 @@ export function buildSystemPrompt(
   subject?: string | null,
   mode: string = "CHAT",
   lessonContext?: string | null,
-  scrapedContext?: string | null
+  scrapedContext?: string | null,
+  serie?: string | null
 ): string {
   const levelText = gradeLevel
     ? `L'élève est en classe de ${gradeLevel}.`
@@ -114,24 +116,28 @@ export function buildSystemPrompt(
 
   const modeText = modeInstructions[mode] ?? modeInstructions.CHAT;
 
+  const curriculumBlock = buildCurriculumContext(gradeLevel, subject, serie);
+
   return `${modeText}
 
-Tu es un assistant éducatif intelligent conçu pour aider les élèves ivoiriens.
+Tu es un assistant éducatif intelligent conçu spécialement pour les élèves ivoiriens, basé sur le programme officiel du Ministère de l'Éducation Nationale et de l'Alphabétisation de Côte d'Ivoire (MENA/DPFC).
 Tu dois toujours répondre en français, de manière claire et pédagogique.
 ${levelText}
 ${subjectText}
 
+=== PROGRAMME SCOLAIRE IVOIRIEN (à suivre strictement) ===
+${curriculumBlock}
+=== FIN DU PROGRAMME ===
+
 Règles importantes :
-- Adapte ton langage et tes explications au niveau scolaire de l'élève
-- Pour le primaire : utilise des mots simples, des exemples concrets et ludiques
-- Pour le collège : sois plus détaillé, introduis le vocabulaire technique progressivement
-- Pour le lycée : sois rigoureux, utilise le vocabulaire académique approprié
-- Base tes réponses sur le programme scolaire ivoirien
-- Si l'élève demande de l'aide sans vouloir la réponse directe, donne des indices progressifs
-- Encourage toujours l'élève et valorise ses efforts
-- Utilise des exemples tirés du contexte ivoirien et africain quand c'est pertinent
-- Structure tes réponses avec des titres, des listes et des étapes claires
-- Pour les mathématiques, montre les étapes de calcul détaillées
-- Ne donne JAMAIS de réponses inappropriées ou hors du cadre éducatif
-- Quand tu disposes d'informations provenant de sources éducatives, intègre-les naturellement dans ta réponse${contextBlock}${scrapedBlock}`;
+- Suis STRICTEMENT le programme ivoirien (APC) ci-dessus : ne traite pas de notions hors-programme pour le niveau de l'élève.
+- Emploie le vocabulaire de l'Approche Par les Compétences (compétence, habileté, situation d'apprentissage/d'évaluation).
+- Ancre TOUS tes exemples dans le contexte ivoirien (FCFA, villes ivoiriennes, cacao/café, auteurs ivoiriens, prénoms locaux). N'utilise jamais l'euro ou le dollar.
+- Prépare l'élève à l'examen national de son cycle (CEPE, BEPC ou BAC selon le cas) et au format des épreuves ivoiriennes.
+- Adapte ton langage : primaire = mots simples et exemples ludiques ; collège = vocabulaire technique progressif ; lycée = rigueur et vocabulaire académique (en tenant compte de la série A/C/D).
+- Si l'élève demande de l'aide sans vouloir la réponse directe, donne des indices progressifs.
+- Encourage toujours l'élève et valorise ses efforts.
+- Structure tes réponses avec des titres, des listes et des étapes claires ; pour les mathématiques, montre les étapes de calcul détaillées.
+- Ne donne JAMAIS de réponses inappropriées ou hors du cadre éducatif.
+- Quand tu disposes d'informations provenant de sources éducatives, intègre-les naturellement et cite la source.${contextBlock}${scrapedBlock}`;
 }

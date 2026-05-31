@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { CURRICULUM, IVORIAN_EXAMS, getCycle } from "../src/lib/curriculum";
 
 const prisma = new PrismaClient();
 
@@ -210,6 +211,80 @@ Elle donne un ordre, un conseil ou une interdiction.
 
     console.log("French lessons created");
   }
+
+  // Seed the full official Ivorian programme (APC) from the curriculum module.
+  // Creates a Chapter per programme chapter and a Lesson per programme lesson,
+  // skipping any that already exist so the rich flagship lessons above are kept.
+  let curriculumChapters = 0;
+  let curriculumLessons = 0;
+  for (const [subjectName, levels] of Object.entries(CURRICULUM)) {
+    const subjectRow = await prisma.subject.findUnique({
+      where: { name: subjectName },
+    });
+    if (!subjectRow) continue;
+
+    for (const [gradeLevel, chapters] of Object.entries(levels)) {
+      if (!chapters) continue;
+      const exam = IVORIAN_EXAMS[getCycle(gradeLevel)];
+
+      for (let i = 0; i < chapters.length; i++) {
+        const ch = chapters[i];
+        const existingChapter = await prisma.chapter.findFirst({
+          where: { title: ch.title, gradeLevel, subjectId: subjectRow.id },
+        });
+        const chapterRow =
+          existingChapter ??
+          (await prisma.chapter.create({
+            data: {
+              title: ch.title,
+              orderNum: i + 1,
+              subjectId: subjectRow.id,
+              gradeLevel,
+            },
+          }));
+        if (!existingChapter) curriculumChapters++;
+
+        for (const lessonTitle of ch.lessons) {
+          const existingLesson = await prisma.lesson.findFirst({
+            where: { title: lessonTitle, gradeLevel, subjectId: subjectRow.id },
+          });
+          if (existingLesson) continue;
+
+          const content = `# ${lessonTitle}
+
+**Matière :** ${subjectName} · **Niveau :** ${gradeLevel} · **Chapitre :** ${ch.title}
+**Cadre :** Programme officiel ivoirien (MENA/DPFC) — Approche Par les Compétences (APC)
+
+## Compétence visée
+À la fin de cette leçon, l'élève doit être capable de traiter une situation relative à « ${ch.title} » en mobilisant la notion : ${lessonTitle}.
+
+## Contenu de la leçon
+${lessonTitle} fait partie du programme de ${subjectName} de la classe de ${gradeLevel} en Côte d'Ivoire. La leçon est abordée selon l'APC : on part d'une situation d'apprentissage tirée du quotidien ivoirien, on installe les habiletés, puis on évalue par une situation.
+
+## Exemple ancré en Côte d'Ivoire
+Les exemples et exercices s'appuient sur le contexte ivoirien (FCFA, villes comme Abidjan, Bouaké ou Korhogo, économie du cacao et du café, prénoms ivoiriens).
+
+## Vers l'examen
+Cette notion peut être évaluée à l'examen national : ${exam.name} (${exam.full}).`;
+
+          await prisma.lesson.create({
+            data: {
+              title: lessonTitle,
+              content,
+              summary: `${lessonTitle} — ${ch.title} (${subjectName}, ${gradeLevel}). Programme ivoirien APC, préparation au ${exam.name}.`,
+              subjectId: subjectRow.id,
+              chapterId: chapterRow.id,
+              gradeLevel,
+            },
+          });
+          curriculumLessons++;
+        }
+      }
+    }
+  }
+  console.log(
+    `Curriculum ivoirien seedé : ${curriculumChapters} chapitres, ${curriculumLessons} leçons`
+  );
 
   console.log("Seeding completed!");
 }

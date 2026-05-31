@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { generateAIResponse, getAIProvider } from "@/lib/ai";
 import { searchScrapedContent } from "@/lib/scraper";
+import { buildCurriculumContext, getCycle, IVORIAN_EXAMS } from "@/lib/curriculum";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { subject, gradeLevel, topic, difficulty, type, count } = body;
+    const { subject, gradeLevel, serie, topic, difficulty, type, count } = body;
 
     if (!subject || !gradeLevel) {
       return NextResponse.json(
@@ -49,10 +50,22 @@ export async function POST(req: NextRequest) {
       FILL_BLANK: "Phrases à compléter avec les mots manquants.",
     };
 
+    const exam = IVORIAN_EXAMS[getCycle(gradeLevel)];
+    const curriculumBlock = buildCurriculumContext(gradeLevel, subject, serie);
+
     const prompt = `Génère ${count ?? 3} exercices de ${subject} pour un élève de ${gradeLevel} en Côte d'Ivoire.
 ${topic ? `Sujet spécifique : ${topic}` : ""}
 Difficulté : ${difficulty ?? "MEDIUM"}
 Type : ${typeInstructions[type ?? "OPEN"] ?? typeInstructions.OPEN}
+
+=== PROGRAMME OFFICIEL IVOIRIEN (respecte-le strictement) ===
+${curriculumBlock}
+=== FIN DU PROGRAMME ===
+
+Contraintes :
+- Reste STRICTEMENT dans le programme ivoirien ci-dessus pour ce niveau (pas de notions hors-programme).
+- Ancre les énoncés dans le contexte ivoirien (FCFA, villes ivoiriennes, cacao/café, prénoms locaux) ; n'utilise jamais l'euro ni le dollar.
+- Inspire-toi du format de l'examen national : ${exam.name} (${exam.full}).
 ${contextBlock}
 
 Réponds en JSON avec le format suivant :

@@ -22,6 +22,7 @@ export interface Conversation {
   title: string | null;
   subject: string | null;
   gradeLevel: string | null;
+  serie: string | null;
   mode: ConversationMode;
   messages: ChatMessage[];
   createdAt: string;

@@ -18,6 +18,7 @@ export default function ConversationPage() {
   const [isLoadingConv, setIsLoadingConv] = useState(true);
   const [subject, setSubject] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
+  const [serie, setSerie] = useState("");
   const [convMode, setConvMode] = useState("CHAT");
   const [streamingContent, setStreamingContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -40,6 +41,7 @@ export default function ConversationPage() {
           setMessages(data.messages ?? []);
           setSubject(data.subject ?? "");
           setGradeLevel(data.gradeLevel ?? "");
+          setSerie(data.serie ?? "");
           setConvMode(data.mode ?? "CHAT");
         }
       } catch {
@@ -67,6 +69,15 @@ export default function ConversationPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gradeLevel: value }),
+    }).catch(() => {});
+  };
+
+  const handleSerieChange = async (value: string) => {
+    setSerie(value);
+    await fetch(`/api/conversations/${conversationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ serie: value }),
     }).catch(() => {});
   };
 
@@ -183,8 +194,10 @@ export default function ConversationPage() {
       <ModeSelector
         subject={subject}
         gradeLevel={gradeLevel}
+        serie={serie}
         onSubjectChange={handleSubjectChange}
         onGradeLevelChange={handleGradeLevelChange}
+        onSerieChange={handleSerieChange}
       />
 
       {/* Messages */}

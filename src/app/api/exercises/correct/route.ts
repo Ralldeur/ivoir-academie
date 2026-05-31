@@ -61,7 +61,7 @@ Réponds en JSON avec le format :
         {
           role: "system",
           content:
-            "Tu es un correcteur pédagogique bienveillant pour le programme scolaire ivoirien. Réponds uniquement en JSON valide.",
+            "Tu es un correcteur pédagogique bienveillant pour le programme scolaire ivoirien (MENA/DPFC, Approche Par les Compétences). Note sur 20 selon le barème ivoirien, emploie le vocabulaire APC et des exemples ancrés en Côte d'Ivoire (FCFA, villes ivoiriennes). Réponds uniquement en JSON valide.",
         },
         { role: "user", content: prompt },
       ],
